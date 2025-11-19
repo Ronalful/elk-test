@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # 1. ELASTICSEARCH - Хранилище логов
+  # ----------------------------------------------------
+  elasticsearch:
+    image: elasticsearch:9.2.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk_net
+
+  # ----------------------------------------------------
+  # 2. LOGSTASH - Приемник и процессор логов
+  # ----------------------------------------------------
+  logstash:
+    image: logstash:9.2.1
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5000:5000/tcp" # Порт для приема логов от Java-сервиса
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk_net
+
+  # ----------------------------------------------------
+  # 3. KIBANA - Визуализация
+  # ----------------------------------------------------
+  kibana:
+    image: kibana:9.2.1
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk_net
+
+  # ----------------------------------------------------
+  # 4. JENKINS - CI/CD Сервер
+  # (Используем образ с Docker CLI для работы с Docker)
+  # ----------------------------------------------------
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17 # Базовый образ
+    container_name: jenkins
+    privileged: true # Нужен для работы с Docker-демоном хоста
+    user: root
+    ports:
+      - "8080:8080" # Jenkins Web UI
+      - "50000:50000" # JNLP порт для агентов
+    volumes:
+      # Монтируем Docker сокет хоста
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Монтируем Jenkins Home для сохранения данных
+      - jenkins_home:/var/jenkins_home
+      # Монтируем корневой каталог проекта, чтобы Jenkins мог видеть исходники
+      - .:/home/project
+    networks:
+      - elk_net
+
+  # ----------------------------------------------------
+  # 5. JAVA SERVICE - Целевое приложение
+  # ----------------------------------------------------
+  java_service:
+    build: .
+    container_name: java_service
+    # В продакшене этот сервис будет запускаться Jenkins'ом после сборки
+    # Здесь он используется как пример и целевой образ для Jenkins
+    ports:
+      - "8081:8080"
+    environment:
+      # Передача адреса Logstash для конфигурации логирования
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5000
+    depends_on:
+      - logstash
+    networks:
+      - elk_net
+    volumes:
+      - ./:/app
+      - ~/.m2:/root/.m2
+
+volumes:
+  esdata:
+    driver: local
+  jenkins_home:
+    driver: local
+
+networks:
+  elk_net:
+    driver: bridge
