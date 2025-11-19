@@ -35,7 +35,7 @@ pipeline {
             steps {
                 // 2. Сборка Java-приложения (mvn clean package)
                 sh 'mvn clean package -DskipTests'
-                
+
                 // 3. Сборка Docker образа с новым JAR
                 sh "docker build -t ${DOCKER_IMAGE} ."
                 sh "docker tag ${DOCKER_IMAGE} ${SERVICE_NAME}:latest"
@@ -53,7 +53,7 @@ pipeline {
                         echo "Deploying new image: ${DOCKER_IMAGE}"
                         // Остановка старого и запуск нового сервиса
                         sh "docker-compose up -d --no-deps --build ${SERVICE_NAME}"
-                        
+
                         // Имитация теста (проверка доступности или API)
                         sh 'sleep 10'
                         sh 'curl -f http://localhost:8081/health'
@@ -77,7 +77,7 @@ pipeline {
         stage('Cleanup') {
             steps {
                 echo 'Cleaning up old Docker images...'
-                sh "docker rmi -f $(docker images -f 'dangling=true' -q)"
+                sh 'docker rmi -f $(docker images -f \'dangling=true\' -q)'
             }
         }
     }

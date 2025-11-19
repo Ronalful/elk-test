@@ -91,9 +91,6 @@ services:
       - logstash
     networks:
       - elk_net
-    volumes:
-      - ./:/app
-      - ~/.m2:/root/.m2
 
 volumes:
   esdata:
