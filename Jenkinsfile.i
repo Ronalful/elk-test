@@ -9,13 +9,19 @@ pipeline {
         LOG_LEVEL_PARAM = 'INFO' // Параметр для изменения
     }
 
+    tools {
+        maven 'maven'
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 // Получаем исходный код из Git (предполагается, что репозиторий настроен)
                 // Для простоты здесь используется текущий рабочий каталог
                 echo 'Checking out source code...'
-                // git url: 'your-git-repo.git'
+                git url: 'https://github.com/Ronalful/elk-test/'
+
+
             }
         }
 
@@ -26,7 +32,7 @@ pipeline {
                     echo "Changing log level in application file to ${LOG_LEVEL_PARAM}..."
                     // Пример: sed -i "s/logging.level=.*/logging.level=/${LOG_LEVEL_PARAM}/g" application.properties
                     // Здесь мы просто имитируем, чтобы показать, что Jenkins может менять параметры
-                    env.LOG_LEVEL_OLD = readFile('application.properties').tokenize('\n').find { it.startsWith('logging.level=') } ?: 'INFO'
+                    env.LOG_LEVEL_OLD = readFile('src/main/resources/application.properties').tokenize('\n').find { it.startsWith('logging.level=') } ?: 'INFO'
                 }
             }
         }
@@ -56,7 +62,7 @@ pipeline {
 
                         // Имитация теста (проверка доступности или API)
                         sh 'sleep 10'
-                        sh 'curl -f http://localhost:8081/health'
+                        sh 'curl -f http://localhost:8081/actuator/health'
                         echo "Deployment successful. New logs are being sent to ELK."
 
                     } catch (e) {
